@@ -1,0 +1,32 @@
+version: '1.0'
+name: ci
+displayName: CI
+triggers:
+  trigger: auto
+  push:
+    branches:
+      prefix:
+        - ''
+stages:
+  - name: test
+    displayName: Test
+    strategy: naturally
+    trigger: auto
+    steps:
+      - step: build@golang
+        name: test
+        displayName: Go vet, race tests, fuzz, lint
+        golangVersion: '1.24'
+        commands:
+          - export GOPROXY=https://goproxy.cn
+          - go vet ./...
+          - go test -race -coverprofile=coverage.out ./...
+          - go test -run '^$' -fuzz=FuzzParseKeyPath -fuzztime=10s .
+          - go test -run '^$' -fuzz=FuzzDecode -fuzztime=10s .
+          - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+          - export PATH="$(go env GOPATH)/bin:$PATH" && golangci-lint run ./...
+        caches:
+          - /go/pkg/mod
+        notify: []
+        strategy:
+          retry: '0'
